@@ -1,23 +1,48 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path"
 )
 
-func getCommand(name string) Command {
-	basename := path.Base(name)
-	switch basename {
+func busyboxUsage() {
+	fmt.Println("busybox-go v0.0.1")
+	fmt.Println()
+
+	fmt.Println("Usage:")
+	fmt.Println("\tbusybox-go [function [arguments]...]")
+	fmt.Println("\tfunction [arguments]...")
+	fmt.Println()
+
+	fmt.Println("Currently defined functions:")
+	fmt.Println("\tyes")
+}
+
+func runCommand(args []string) int {
+	var cmd Command
+
+	switch path.Base(args[0]) {
 	case "yes":
-		return Yes{}
+		cmd = Yes{}
+	case "busybox", "busybox-go":
+		if len(args) == 1 {
+			busyboxUsage()
+			return 0
+		} else if args[1] == "busybox" || args[1] == "busybox-go" {
+			busyboxUsage()
+			return 0
+		} else {
+			return runCommand(args[1:])
+		}
 	default:
-		return nil
+		fmt.Printf("%s: applet not found\n", args[0])
+		return -1
 	}
+
+	return cmd.Run(args)
 }
 
 func main() {
-	s := getCommand(os.Args[0])
-	if s != nil {
-		s.Run(os.Args)
-	}
+	os.Exit(runCommand(os.Args))
 }

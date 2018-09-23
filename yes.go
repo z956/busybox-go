@@ -7,7 +7,7 @@ import (
 
 type Yes struct{}
 
-func (m Yes) Run(args []string) {
+func (m Yes) Run(args []string) int {
 	output := ""
 
 	if len(args) == 1 {
@@ -18,4 +18,5 @@ func (m Yes) Run(args []string) {
 	for {
 		fmt.Println(output)
 	}
+	return 0
 }
