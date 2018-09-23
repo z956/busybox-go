@@ -7,6 +7,10 @@ import (
 
 type Yes struct{}
 
+func NewYes() Command {
+	return Yes{}
+}
+
 func (m Yes) Run(args []string) int {
 	output := ""
 

@@ -6,6 +6,16 @@ import (
 	"path"
 )
 
+type newCmdFunc func() Command
+
+var commands map[string]newCmdFunc = initCmdList()
+
+func initCmdList() map[string]newCmdFunc {
+	return map[string]newCmdFunc{
+		"yes": NewYes,
+	}
+}
+
 func busyboxUsage() {
 	fmt.Println("busybox-go v0.0.1")
 	fmt.Println()
@@ -20,27 +30,23 @@ func busyboxUsage() {
 }
 
 func runCommand(args []string) int {
-	var cmd Command
+	name := path.Base(args[0])
 
-	switch path.Base(args[0]) {
-	case "yes":
-		cmd = Yes{}
-	case "busybox", "busybox-go":
+	if name == "busybox" || name == "busybox-go" {
 		if len(args) == 1 {
 			busyboxUsage()
 			return 0
-		} else if args[1] == "busybox" || args[1] == "busybox-go" {
-			busyboxUsage()
-			return 0
-		} else {
-			return runCommand(args[1:])
 		}
-	default:
-		fmt.Printf("%s: applet not found\n", args[0])
-		return -1
+		return runCommand(args[1:])
 	}
 
-	return cmd.Run(args)
+	if f, ok := commands[name]; ok {
+		cmd := f()
+		return cmd.Run(args)
+	}
+
+	fmt.Printf("%s: applet not found\n", name)
+	return -1
 }
 
 func main() {
