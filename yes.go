@@ -20,6 +20,9 @@ func NewYes(args []string) (Command, error) {
 	return Yes{output}, nil
 }
 
+func UsageYes() {
+}
+
 func (y Yes) Run() int {
 	for {
 		fmt.Println(y.output)

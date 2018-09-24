@@ -6,13 +6,17 @@ import (
 	"path"
 )
 
-type newCmdFunc func(args []string) (Command, error)
+type cmdFunc struct {
+	newCmd func(args []string) (Command, error)
+	usage  func()
+}
 
-var commands map[string]newCmdFunc = initCmdList()
+var commands map[string]cmdFunc = initCmdList()
 
-func initCmdList() map[string]newCmdFunc {
-	return map[string]newCmdFunc{
-		"yes": NewYes,
+func initCmdList() map[string]cmdFunc {
+	return map[string]cmdFunc{
+		"yes":  cmdFunc{NewYes, UsageYes},
+		"head": cmdFunc{NewHead, UsageHead},
 	}
 }
 
@@ -40,10 +44,11 @@ func runCommand(args []string) int {
 		return runCommand(args[1:])
 	}
 
-	if f, ok := commands[name]; ok {
-		cmd, err := f(args)
+	if c, ok := commands[name]; ok {
+		cmd, err := c.newCmd(args)
 		if err != nil {
 			fmt.Println(err)
+			c.usage()
 			return -1
 		}
 		return cmd.Run()
