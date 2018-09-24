@@ -5,13 +5,11 @@ import (
 	"strings"
 )
 
-type Yes struct{}
-
-func NewYes() Command {
-	return Yes{}
+type Yes struct {
+	output string
 }
 
-func (m Yes) Run(args []string) int {
+func NewYes(args []string) (Command, error) {
 	output := ""
 
 	if len(args) == 1 {
@@ -19,8 +17,12 @@ func (m Yes) Run(args []string) int {
 	} else {
 		output = strings.Join(args[1:], " ")
 	}
+	return Yes{output}, nil
+}
+
+func (y Yes) Run() int {
 	for {
-		fmt.Println(output)
+		fmt.Println(y.output)
 	}
 	return 0
 }

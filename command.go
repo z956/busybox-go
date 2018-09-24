@@ -1,5 +1,5 @@
 package main
 
 type Command interface {
-	Run(args []string) int
+	Run() int
 }

@@ -6,7 +6,7 @@ import (
 	"path"
 )
 
-type newCmdFunc func() Command
+type newCmdFunc func(args []string) (Command, error)
 
 var commands map[string]newCmdFunc = initCmdList()
 
@@ -41,11 +41,15 @@ func runCommand(args []string) int {
 	}
 
 	if f, ok := commands[name]; ok {
-		cmd := f()
-		return cmd.Run(args)
+		cmd, err := f(args)
+		if err != nil {
+			fmt.Println(err)
+			return -1
+		}
+		return cmd.Run()
 	}
 
-	fmt.Printf("%s: applet not found\n", name)
+	fmt.Printf("%s: command not found\n", name)
 	return -1
 }
 
