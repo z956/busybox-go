@@ -21,13 +21,14 @@ func (o Option) hasShort() bool {
 	return o.OptShort != 0
 }
 
-type ParseResultFunc func(optlong string, optshort byte, val string, userdata interface{}) error
+type ParseResultFunc func(opt Option, val string, userdata interface{}) error
 
 func OptParse(args []string, opts []Option, cb ParseResultFunc, userdata interface{}) error {
 	if err := checkOpts(opts); err != nil {
 		return err
 	}
 
+	emptyOpt := Option{"", 0, OPT_NO_ARG}
 	arglen := len(args)
 	for i := 0; i < arglen; i++ {
 		ss := strings.SplitN(args[i], "=", 2)
@@ -37,25 +38,25 @@ func OptParse(args []string, opts []Option, cb ParseResultFunc, userdata interfa
 		} else {
 			if len(r) == 0 {
 				//not an option
-				if err := cb("", 0, args[i], userdata); err != nil {
+				if err := cb(emptyOpt, args[i], userdata); err != nil {
 					return err
 				}
 			} else {
 				for _, o := range r {
 					if o.HasArg == OPT_NO_ARG {
-						if err := cb(o.OptLong, o.OptShort, "", userdata); err != nil {
+						if err := cb(o, "", userdata); err != nil {
 							return err
 						}
 					} else if o.HasArg == OPT_REQUIRE_ARG {
 						if len(ss) == 2 {
-							if err := cb(o.OptLong, o.OptShort, ss[1], userdata); err != nil {
+							if err := cb(o, ss[1], userdata); err != nil {
 								return err
 							}
 						} else if i == arglen-1 {
 							return fmt.Errorf("Missing argument with option '%s'", ss[0])
 						} else {
 							i += 1
-							if err := cb(o.OptLong, o.OptShort, args[i], userdata); err != nil {
+							if err := cb(o, args[i], userdata); err != nil {
 								return err
 							}
 						}
@@ -138,7 +139,7 @@ func getOptionByShort(opts []Option, opt byte) (Option, error) {
 			return o, nil
 		}
 	}
-	return Option{}, fmt.Errorf("Unknown option: %s", opt)
+	return Option{}, fmt.Errorf("Unknown option: %c", opt)
 }
 
 func isOptValid(b byte) bool {

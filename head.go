@@ -54,10 +54,10 @@ func parseSizeOpt(val string) (int, error) {
 		return size, nil
 	}
 }
-func parseResult(optlong string, optshort byte, val string, userdata interface{}) error {
+func parseResult(opt Option, val string, userdata interface{}) error {
 	h := userdata.(*Head)
 	var err error
-	switch optshort {
+	switch opt.OptShort {
 	case 'n':
 		if h.num, err = parseSizeOpt(val); err != nil {
 			return err
