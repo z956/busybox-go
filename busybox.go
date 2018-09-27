@@ -6,18 +6,11 @@ import (
 	"path"
 )
 
-type cmdFunc struct {
-	newCmd func(args []string) (Command, error)
-	usage  func()
-}
+type cmdMainFunc func(args []string) int
 
-var commands map[string]cmdFunc = initCmdList()
-
-func initCmdList() map[string]cmdFunc {
-	return map[string]cmdFunc{
-		"yes":  cmdFunc{NewYes, UsageYes},
-		"head": cmdFunc{NewHead, UsageHead},
-	}
+var commands map[string]cmdMainFunc = map[string]cmdMainFunc{
+	"yes":  YesMain,
+	"head": HeadMain,
 }
 
 func busyboxUsage() {
@@ -30,10 +23,14 @@ func busyboxUsage() {
 	fmt.Println()
 
 	fmt.Println("Currently defined functions:")
-	fmt.Println("\tyes")
+
+	for k := range commands {
+		fmt.Printf("%s, ", k)
+	}
+	fmt.Println()
 }
 
-func runCommand(args []string) int {
+func run(args []string) int {
 	name := path.Base(args[0])
 
 	if name == "busybox" || name == "busybox-go" {
@@ -41,17 +38,11 @@ func runCommand(args []string) int {
 			busyboxUsage()
 			return 0
 		}
-		return runCommand(args[1:])
+		return run(args[1:])
 	}
 
-	if c, ok := commands[name]; ok {
-		cmd, err := c.newCmd(args)
-		if err != nil {
-			fmt.Println(err)
-			c.usage()
-			return -1
-		}
-		return cmd.Run()
+	if cmd, ok := commands[name]; ok {
+		return cmd(args)
 	}
 
 	fmt.Printf("%s: command not found\n", name)
@@ -59,5 +50,5 @@ func runCommand(args []string) int {
 }
 
 func main() {
-	os.Exit(runCommand(os.Args))
+	os.Exit(run(os.Args))
 }

@@ -5,27 +5,18 @@ import (
 	"strings"
 )
 
-type Yes struct {
-	output string
-}
-
-func NewYes(args []string) (Command, error) {
+func YesMain(args []string) int {
 	output := ""
+	args = args[1:]
 
-	if len(args) == 1 {
+	if len(args) == 0 {
 		output = "y"
 	} else {
-		output = strings.Join(args[1:], " ")
+		output = strings.Join(args, " ")
 	}
-	return Yes{output}, nil
-}
 
-func UsageYes() {
-}
-
-func (y Yes) Run() int {
 	for {
-		fmt.Println(y.output)
+		fmt.Println(output)
 	}
 	return 0
 }

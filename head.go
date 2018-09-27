@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-type Head struct {
+type head struct {
 	file    string
 	isStdin bool
 	num     int
@@ -15,15 +15,11 @@ type Head struct {
 	isVerbose  bool
 }
 
-var headOpts = initOpt()
-
-func initOpt() []Option {
-	return []Option{
-		{"", 'n', OPT_REQUIRE_ARG},
-		{"", 'c', OPT_REQUIRE_ARG},
-		{"", 'v', OPT_NO_ARG},
-		{"", 'q', OPT_NO_ARG},
-	}
+var headOpts []Option = []Option{
+	{"", 'n', OPT_REQUIRE_ARG},
+	{"", 'c', OPT_REQUIRE_ARG},
+	{"", 'v', OPT_NO_ARG},
+	{"", 'q', OPT_NO_ARG},
 }
 
 func parseSizeOpt(val string) (int, error) {
@@ -55,7 +51,7 @@ func parseSizeOpt(val string) (int, error) {
 	}
 }
 func parseResult(opt Option, val string, userdata interface{}) error {
-	h := userdata.(*Head)
+	h := userdata.(*head)
 	var err error
 	switch opt.OptShort {
 	case 'n':
@@ -84,17 +80,16 @@ func parseResult(opt Option, val string, userdata interface{}) error {
 	return nil
 }
 
-func NewHead(args []string) (Command, error) {
-	h := Head{"", true, 10, true, false}
-
-	if err := OptParse(args[1:], headOpts, parseResult, &h); err != nil {
-		return nil, err
-	}
-
-	return h, nil
+func (h *head) parse(args []string) error {
+	return OptParse(args[1:], headOpts, parseResult, h)
 }
 
-func UsageHead() {
+func (h *head) run() int {
+	fmt.Println("head command is running")
+	return 0
+}
+
+func (h *head) usage() {
 	fmt.Println("Usage: head [OPTIONS] [FILE]...")
 	fmt.Println()
 
@@ -109,7 +104,13 @@ func UsageHead() {
 	fmt.Printf("\t-v\t\tAlways print headers\n")
 }
 
-func (h Head) Run() int {
-	fmt.Printf("head running, head: %v\n", h)
-	return 0
+func HeadMain(args []string) int {
+	h := head{"", true, 10, true, false}
+
+	if err := h.parse(args); err != nil {
+		fmt.Println(err)
+		h.usage()
+		return -1
+	}
+	return h.run()
 }
