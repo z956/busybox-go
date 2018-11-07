@@ -17,7 +17,7 @@ type head struct {
 	isVerbose  bool
 }
 
-func parseSizeOpt(val string) (int, error) {
+func parseSizeOpt(val string, num *int) error {
 	//val: 10
 	//val: 10k, 10K (1024)
 	//val: 10b, 10B (512)
@@ -39,45 +39,42 @@ func parseSizeOpt(val string) (int, error) {
 	}
 
 	if size, err := strconv.Atoi(val); err != nil {
-		return 0, fmt.Errorf("Invalid size value: %s", val)
+		return fmt.Errorf("Invalid size value: %s", val)
 	} else {
 		size *= mul
-		return size, nil
+		*num = size
+		return nil
 	}
 }
 
-func (h *head) setArg(val string) error {
-	//file
-	if _, err := os.Stat(val); os.IsNotExist(err) {
-		return err
-	} else {
-		h.file = val
-		h.isStdin = false
-	}
-	return nil
-}
 func (h *head) setOptArg(opt *Option, val string) error {
 	var err error
-	switch opt.OptShort {
-	case 'n':
-		if h.num, err = parseSizeOpt(val); err != nil {
+
+	if opt == nil {
+		if _, err := os.Stat(val); os.IsNotExist(err) {
 			return err
+		} else {
+			h.file = val
+			h.isStdin = false
 		}
-		h.isLineMode = true
-	case 'c':
-		if h.num, err = parseSizeOpt(val); err != nil {
-			return err
+	} else {
+		switch opt.OptShort {
+		case 'n':
+			h.isLineMode = true
+			err = parseSizeOpt(val, &h.num)
+		case 'c':
+			h.isLineMode = false
+			err = parseSizeOpt(val, &h.num)
+		case 'v':
+			h.isVerbose = true
+		case 'q':
+			h.isVerbose = false
+		default:
+			err = fmt.Errorf("Invalid option \"-%c\"", opt.OptShort)
 		}
-		h.isLineMode = false
-	case 'v':
-		h.isVerbose = true
-	case 'q':
-		h.isVerbose = false
-	default:
-		err = fmt.Errorf("Invalid option \"-%c\"", opt.OptShort)
-		return err
 	}
-	return nil
+
+	return err
 }
 
 func (h *head) printVerbose() {
@@ -153,38 +150,34 @@ func (h *head) usage() {
 	fmt.Printf("\t-v\t\tAlways print headers\n")
 }
 
+func checkErr(e error) bool {
+	if e != nil {
+		fmt.Println(e)
+		return true
+	}
+	return false
+}
+
 func HeadMain(args []string) int {
 	h := head{"", true, 10, true, false}
 	var err error
 
-	opts := Options{
-		opts: []Option{
-			{"", 'n', OPT_REQUIRE_ARG},
-			{"", 'c', OPT_REQUIRE_ARG},
-			{"", 'v', OPT_NO_ARG},
-			{"", 'q', OPT_NO_ARG},
-		},
+	var o []Option = []Option{
+		{"", 'n', OPT_REQUIRE_ARG},
+		{"", 'c', OPT_REQUIRE_ARG},
+		{"", 'v', OPT_NO_ARG},
+		{"", 'q', OPT_NO_ARG},
+	}
+	opts := NewOptions(o)
+
+	for err == nil && opts.GetOpts(args[1:]) {
+		err = h.setOptArg(opts.Option(), opts.Value())
 	}
 
-	for err == nil {
-		if i := opts.GetOpts(args[1:]); i == OPT_RET_END {
-			break
-		} else if i == OPT_RET_NO_ARG {
-			err = h.setArg(opts.Value)
-		} else {
-			err = h.setOptArg(&opts.opts[i], opts.Value)
-		}
+	if checkErr(opts.Err()) || checkErr(err) {
+		fmt.Println()
+		h.usage()
+		return -1
 	}
-
-	if opts.Err == nil && err == nil {
-		return h.run()
-	}
-	if opts.Err != nil {
-		fmt.Println(opts.Err)
-	} else if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println()
-	h.usage()
-	return -1
+	return h.run()
 }

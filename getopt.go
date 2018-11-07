@@ -37,91 +37,107 @@ func hasOptPrefix(arg string) bool {
 
 type Options struct {
 	opts  []Option
-	Value string
-	Err   error
+	value string
+	err   error
+	opt   *Option
 
 	//private
 	argc int
 	pos  int
 }
 
-func (o *Options) GetOpts(args []string) int {
-	if o.Err != nil {
-		return OPT_RET_END
+func NewOptions(opt []Option) *Options {
+	return &Options{opts: opt}
+}
+
+func (o *Options) Option() *Option {
+	if o.err != nil {
+		return nil
+	} else {
+		return o.opt
+	}
+}
+func (o *Options) Value() string {
+	if o.err != nil {
+		return ""
+	} else {
+		return o.value
+	}
+}
+func (o *Options) Err() error {
+	return o.err
+}
+
+func (o *Options) GetOpts(args []string) bool {
+	if o.err != nil {
+		return false
 	}
 
-	argslen := len(args)
-
-	for o.argc < argslen {
-		if o.pos == len(args[o.argc]) {
-			o.pos = 0
-			o.argc++
-			continue
-		}
-
+	for o.argc < len(args) {
 		if o.pos == 0 {
 			arg := args[o.argc]
-			if hasLongOptPrefix(args[o.argc]) {
+			if hasLongOptPrefix(arg) {
 				return o.getoptLong(args)
-			} else if hasShortOptPrefix(args[o.argc]) {
+			} else if hasShortOptPrefix(arg) {
 				return o.getoptShort(args)
 			} else if !hasOptPrefix(arg) {
-				o.Value = arg
+				o.value = arg
+				o.opt = nil
 				o.argc++
-				return OPT_RET_NO_ARG
+				return true
 			} else {
-				o.Err = fmt.Errorf("Invalid option \"%s\"", arg)
-				return OPT_RET_END
+				o.err = fmt.Errorf("Invalid option \"%s\"", arg)
+				return false
 			}
 		} else {
 			return o.getoptShort(args)
 		}
 	}
-
-	return OPT_RET_END
+	return false
 }
 
-func (o *Options) getoptLong(args []string) int {
-	fmt.Printf("getoptLong called, argc: %d, pos: %d\n", o.argc, o.pos)
+func (o *Options) getoptLong(args []string) bool {
 	arg := args[o.argc][2:]
-
 	tokens := strings.SplitN(arg, "=", 2)
 
-	for i, opt := range o.opts {
+	for _, opt := range o.opts {
 		if opt.hasLong() && opt.OptLong == tokens[0] {
 			//check args has an argument if the opt needs
 			if opt.HasArg == OPT_REQUIRE_ARG {
 				if len(tokens) == 2 {
 					// --opt=value
-					o.Value = tokens[1]
+					o.opt = &opt
+					o.value = tokens[1]
 					o.argc++
-					return i
+					return true
 				} else if o.argc < len(args)-1 {
 					// --opt value
-					o.Value = args[o.argc+1]
+					o.opt = &opt
+					o.value = args[o.argc+1]
 					o.argc += 2
-					return i
+					return true
 				} else {
-					o.Err = fmt.Errorf("Option \"--%s\" needs an argument", arg)
-					return OPT_RET_END
+					o.err = fmt.Errorf("Option \"--%s\" needs an argument", arg)
+					return false
 				}
 			} else {
 				if len(tokens) == 2 {
-					o.Err = fmt.Errorf("Invalid argument %s for opt \"--%s\"", tokens[1], tokens[0])
-					return OPT_RET_END
+					o.err = fmt.Errorf("Invalid argument %s for opt \"--%s\"", tokens[1], tokens[0])
+					return false
 				}
+				o.opt = &opt
+				o.value = ""
 				o.argc++
-				return i
+				return true
 			}
 		}
 	}
 
 	//not found
-	o.Err = fmt.Errorf("Unknown option \"--%s\"", arg)
-	return OPT_RET_END
+	o.err = fmt.Errorf("Unknown option \"--%s\"", arg)
+	return false
 }
-
-func (o *Options) getoptShort(args []string) int {
+func (o *Options) getoptShort(args []string) bool {
 	arg := args[o.argc]
 	tokens := strings.SplitN(arg, "=", 2)
 
@@ -131,49 +147,53 @@ func (o *Options) getoptShort(args []string) int {
 	}
 
 	if o.pos == len(tokens[0]) {
-		o.Err = fmt.Errorf("Unknown options %s", arg)
-		return OPT_RET_END
+		o.err = fmt.Errorf("Unknown options %s", arg)
+		return false
 	}
 
-	for i, opt := range o.opts {
+	for _, opt := range o.opts {
 		if opt.hasShort() && opt.OptShort == tokens[0][o.pos] {
 			//found it
 			//check if the opt is the last one if it needs an argument
 			if opt.HasArg == OPT_REQUIRE_ARG {
 				if o.pos != len(tokens[0])-1 {
-					o.Err = fmt.Errorf("Option \"-%c\" needs an argument", tokens[0][o.pos])
-					return OPT_RET_END
+					o.err = fmt.Errorf("Option \"-%c\" needs an argument", tokens[0][o.pos])
+					return false
 				}
 				if len(tokens) == 2 {
-					o.Value = tokens[1]
+					o.opt = &opt
+					o.value = tokens[1]
 					o.argc += 1
 					o.pos = 0
-					return i
+					return true
 				} else if o.argc != len(args)-1 {
-					o.Value = args[o.argc+1]
+					o.opt = &opt
+					o.value = args[o.argc+1]
 					o.argc += 2
 					o.pos = 0
-					return i
+					return true
 				} else {
-					o.Err = fmt.Errorf("Option \"-%c\" needs an argument", arg[o.pos])
-					return OPT_RET_END
+					o.err = fmt.Errorf("Option \"-%c\" needs an argument", arg[o.pos])
+					return false
 				}
 			} else {
 				if o.pos == len(tokens[0])-1 && len(tokens) == 2 {
-					o.Err = fmt.Errorf("Invalid argument %s for opt \"-%c\"", tokens[1], tokens[0][o.pos])
-					return OPT_RET_END
+					o.err = fmt.Errorf("Invalid argument %s for opt \"-%c\"", tokens[1], tokens[0][o.pos])
+					return false
 				}
+				o.opt = &opt
+				o.value = ""
 				o.pos++
 				if o.pos == len(tokens[0]) {
 					o.pos = 0
 					o.argc++
 				}
-				return i
+				return true
 			}
 		}
 	}
 
 	//not found
-	o.Err = fmt.Errorf("Unknown option \"-%c\"", arg[o.pos])
-	return OPT_RET_END
+	o.err = fmt.Errorf("Unknown option \"-%c\"", arg[o.pos])
+	return false
 }
