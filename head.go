@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
@@ -46,7 +48,6 @@ func parseSizeOpt(val string) (int, error) {
 
 func (h *head) setArg(val string) error {
 	//file
-	fmt.Printf("set arg, val: %s\n", val)
 	if _, err := os.Stat(val); os.IsNotExist(err) {
 		return err
 	} else {
@@ -79,9 +80,62 @@ func (h *head) setOptArg(opt *Option, val string) error {
 	return nil
 }
 
-func (h *head) run() int {
-	fmt.Println("head command is running")
+func (h *head) printVerbose() {
+	if h.isVerbose {
+		if h.isStdin {
+			fmt.Printf("==> standard input <==\n")
+		} else {
+			fmt.Printf("==> %s <==\n", h.file)
+		}
+	}
+}
+
+func (h *head) printHead(rd *bufio.Reader) int {
+	for h.num > 0 {
+		v, err := rd.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				return 0
+			}
+			fmt.Println(err)
+			return -1
+		}
+
+		if h.isLineMode {
+			fmt.Print(v)
+			h.num--
+		} else {
+			count := len(v)
+			if h.num < count {
+				count = h.num
+			}
+			h.num -= count
+			fmt.Print(v[0:count])
+		}
+
+	}
+
 	return 0
+}
+
+func (h *head) run() int {
+	var r int
+
+	h.printVerbose()
+
+	if h.isStdin {
+		r = h.printHead(bufio.NewReader(os.Stdin))
+	} else {
+		f, err := os.Open(h.file)
+		if err != nil {
+			fmt.Println(err)
+			return -1
+		}
+		defer f.Close()
+
+		r = h.printHead(bufio.NewReader(f))
+	}
+	return r
 }
 
 func (h *head) usage() {
