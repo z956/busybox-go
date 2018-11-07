@@ -15,13 +15,6 @@ type head struct {
 	isVerbose  bool
 }
 
-var headOpts []Option = []Option{
-	{"", 'n', OPT_REQUIRE_ARG},
-	{"", 'c', OPT_REQUIRE_ARG},
-	{"", 'v', OPT_NO_ARG},
-	{"", 'q', OPT_NO_ARG},
-}
-
 func parseSizeOpt(val string) (int, error) {
 	//val: 10
 	//val: 10k, 10K (1024)
@@ -50,8 +43,19 @@ func parseSizeOpt(val string) (int, error) {
 		return size, nil
 	}
 }
-func parseResult(opt Option, val string, userdata interface{}) error {
-	h := userdata.(*head)
+
+func (h *head) setArg(val string) error {
+	//file
+	fmt.Printf("set arg, val: %s\n", val)
+	if _, err := os.Stat(val); os.IsNotExist(err) {
+		return err
+	} else {
+		h.file = val
+		h.isStdin = false
+	}
+	return nil
+}
+func (h *head) setOptArg(opt *Option, val string) error {
 	var err error
 	switch opt.OptShort {
 	case 'n':
@@ -69,19 +73,10 @@ func parseResult(opt Option, val string, userdata interface{}) error {
 	case 'q':
 		h.isVerbose = false
 	default:
-		//file
-		if _, err := os.Stat(val); os.IsNotExist(err) {
-			return err
-		} else {
-			h.file = val
-			h.isStdin = false
-		}
+		err = fmt.Errorf("Invalid option \"-%c\"", opt.OptShort)
+		return err
 	}
 	return nil
-}
-
-func (h *head) parse(args []string) error {
-	return OptParse(args[1:], headOpts, parseResult, h)
 }
 
 func (h *head) run() int {
@@ -106,11 +101,36 @@ func (h *head) usage() {
 
 func HeadMain(args []string) int {
 	h := head{"", true, 10, true, false}
+	var err error
 
-	if err := h.parse(args); err != nil {
-		fmt.Println(err)
-		h.usage()
-		return -1
+	opts := Options{
+		opts: []Option{
+			{"", 'n', OPT_REQUIRE_ARG},
+			{"", 'c', OPT_REQUIRE_ARG},
+			{"", 'v', OPT_NO_ARG},
+			{"", 'q', OPT_NO_ARG},
+		},
 	}
-	return h.run()
+
+	for err == nil {
+		if i := opts.GetOpts(args[1:]); i == OPT_RET_END {
+			break
+		} else if i == OPT_RET_NO_ARG {
+			err = h.setArg(opts.Value)
+		} else {
+			err = h.setOptArg(&opts.opts[i], opts.Value)
+		}
+	}
+
+	if opts.Err == nil && err == nil {
+		return h.run()
+	}
+	if opts.Err != nil {
+		fmt.Println(opts.Err)
+	} else if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println()
+	h.usage()
+	return -1
 }
