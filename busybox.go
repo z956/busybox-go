@@ -9,8 +9,9 @@ import (
 type cmdMainFunc func(args []string) int
 
 var commands map[string]cmdMainFunc = map[string]cmdMainFunc{
-	"yes":  YesMain,
-	"head": HeadMain,
+	"yes":   YesMain,
+	"head":  HeadMain,
+	"sleep": SleepMain,
 }
 
 func busyboxUsage() {
